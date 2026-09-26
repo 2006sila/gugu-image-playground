@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dev-proxy.config.json
+.wrangler/
+.env.local
+.env.*.local
+
+# 大香蕉来源预览图（1428 张外站收集图，版权灰色，不入库；克隆后运行 scripts/fetch-nb-thumbs.py 生成）
+public/case-thumbs-nb/

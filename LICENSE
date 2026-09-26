@@ -1,0 +1,58 @@
+Nova Image Studio 双许可声明
+================================
+
+本项目包含两部分不同来源的代码，分别适用不同许可证：
+
+一、整体许可证：AGPL-3.0
+--------------------------------
+
+本项目中源自 nova-image-studio
+(https://github.com/tianjiangqiji/nova-image-studio, AGPL-3.0) 的代码及
+其衍生部分（包括但不限于：多协议文本模型层、反推提示词、GIF 生成、
+提案式 Agent、提示词广场数据整理），以及本项目整体的二次开发成果，
+均以 GNU Affero General Public License v3.0 (AGPL-3.0) 授权。
+
+根据 AGPL-3.0 的要求：
+- 本项目的完整源代码随分发一同提供（见本仓库）；
+- 若你通过网络服务使用本项目的修改版本，你同样需要向用户提供修改后的源代码；
+- 你基于本项目的衍生作品必须继续以 AGPL-3.0 开源。
+
+完整的 AGPL-3.0 许可证文本见 LICENSE.AGPL-3.0 文件，
+或访问: https://www.gnu.org/licenses/agpl-3.0.txt
+
+二、源自 gpt_image_playground 的部分：MIT
+--------------------------------
+
+本项目基于 gpt_image_playground
+(https://github.com/CookSleep/gpt_image_playground, MIT License)
+构建，其原始代码（画廊系统、遮罩编辑器、历史管理、多配置系统等）
+继续适用 MIT License：
+
+MIT License
+
+Copyright (c) 2026 CookSleep
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+三、提示词库数据与图片
+--------------------------------
+
+提示词广场收录的提示词文本与预览图来自公开渠道收集
+（各来源仓库见 README「提示词来源」），版权归原作者所有，
+仅作学习研究用途。如有侵权请联系移除。
