@@ -17,6 +17,7 @@ import { createMaskPreviewDataUrl } from '../lib/canvasImage'
 import { getSafeBoundingClientRect } from '../lib/domRect'
 import { collectAgentRoundOutputImageSlots } from '../lib/agentImageReferences'
 import { ALL_FAVORITES_COLLECTION_ID, getTaskFavoriteCollectionIds } from '../lib/favoriteState'
+import { taskMatchesAdvancedFilters } from '../lib/taskFilters'
 import { getContentEditableCursor, getContentEditablePlainText, getContentEditableSelection, getMentionTagHtml, setContentEditableCursor, setContentEditableSelection, syncMentionTagSelection } from '../lib/contentEditableMentions'
 import { useHintTooltip } from '../hooks/useHintTooltip'
 import { downloadImageEntriesAsZip, downloadImageIds, formatExportFileTime, getTaskOutputImageZipEntries } from '../lib/downloadImages'
@@ -118,6 +119,7 @@ export default function InputBar() {
   const activeAgentConversationId = useStore((s) => s.activeAgentConversationId)
   const filterStatus = useStore((s) => s.filterStatus)
   const filterFavorite = useStore((s) => s.filterFavorite)
+  const advancedTaskFilters = useStore((s) => s.advancedTaskFilters)
   const activeFavoriteCollectionId = useStore((s) => s.activeFavoriteCollectionId)
   const openFavoritePicker = useStore((s) => s.openFavoritePicker)
   const searchQuery = useStore((s) => s.searchQuery)
@@ -132,9 +134,10 @@ export default function InputBar() {
         if (activeFavoriteCollectionId && activeFavoriteCollectionId !== ALL_FAVORITES_COLLECTION_ID && !getTaskFavoriteCollectionIds(t, defaultFavoriteCollectionId).includes(activeFavoriteCollectionId)) return false
       }
       if (!taskMatchesFilterStatus(t, filterStatus)) return false
+      if (!taskMatchesAdvancedFilters(t, advancedTaskFilters)) return false
       return taskMatchesSearchQuery(t, q)
     })
-  }, [tasks, searchQuery, filterStatus, filterFavorite, activeFavoriteCollectionId, defaultFavoriteCollectionId])
+  }, [tasks, searchQuery, filterStatus, filterFavorite, activeFavoriteCollectionId, defaultFavoriteCollectionId, advancedTaskFilters])
 
   const inCollectionOverview = filterFavorite && !activeFavoriteCollectionId
 

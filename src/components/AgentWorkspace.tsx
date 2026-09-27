@@ -4,13 +4,14 @@ import { editOutputs, regenerateAgentAssistantMessage, removeMultipleTasks, remo
 import { getActiveAgentRounds, getAgentBranchLeafId, getConversationSearchText, getAgentRoundTaskIds, getAgentSiblingRounds } from '../lib/agentConversationState'
 import { ensureImageCached, getCachedImage } from '../lib/imageCache'
 import { addImageAsset } from '../lib/imageAssets'
+import { getTaskVersionGroupId } from '../lib/taskVersions'
 import { getPromptMentionParts } from '../lib/promptImageMentions'
 import { copyTextToClipboard, getClipboardFailureMessage } from '../lib/clipboard'
 import type { AgentWebSearchStatus } from '../lib/agentWebSearch'
 import { getAgentAssistantBlocks, getAgentAssistantCopyContent, getRoundTaskSlots } from '../lib/agentAssistantBlocks'
 import { createMaskPreviewDataUrl } from '../lib/canvasImage'
 import { downloadImageEntriesAsZip, downloadImageIds, getImageZipEntries } from '../lib/downloadImages'
-import TaskCard from './TaskCard'
+import AgentTaskVersionCard from './agent/AgentTaskVersionCard'
 import ProposalCard from './agent/ProposalCard'
 import MarkdownRenderer from './MarkdownRenderer'
 import { TooltipButton as AgentActionButton } from './TooltipButton'
@@ -826,6 +827,7 @@ export default function AgentWorkspace() {
                 const hasRoundFavoriteTasks = favoriteTasksForRound.length > 0
                 const allRoundTasksFavorited = hasRoundFavoriteTasks && favoriteTasksForRound.every((task) => task.isFavorite)
                 const assistantBlocks = isAssistant ? getAgentAssistantBlocks(round ?? null, taskSlotsForRound, tasks, Boolean(message.content.trim())) : []
+                const renderedVersionGroups = new Set<string>()
                 const inputImagesForRound = (round?.inputImageIds || []).map(id => ({ id, dataUrl: '' }))
                 const parts = getPromptMentionParts(message.content, inputImagesForRound)
                 return (
@@ -920,23 +922,25 @@ export default function AgentWorkspace() {
                                   </div>
                                 )
                               }
+                              const versionGroupId = getTaskVersionGroupId(block.task)
+                              if (renderedVersionGroups.has(versionGroupId)) return null
+                              renderedVersionGroups.add(versionGroupId)
                               return (
-                                <div key={block.key} className="mt-4 max-w-sm" onClick={e => e.stopPropagation()}>
-                                  <TaskCard
+                                <div key={`version-group:${versionGroupId}`} className="mt-4 max-w-sm" onClick={e => e.stopPropagation()}>
+                                  <AgentTaskVersionCard
                                     task={block.task}
                                     allTasks={tasks}
                                     onCancel={block.task.agentConversationId && block.task.agentRoundId
-                                      ? () => stopAgentRound(block.task.agentConversationId!, block.task.agentRoundId!)
+                                      ? (selectedTask) => stopAgentRound(selectedTask.agentConversationId!, selectedTask.agentRoundId!)
                                       : undefined}
-                                    disableSwipe={true}
-                                    onClick={() => setDetailTaskId(block.task.id)}
-                                    onPreview={() => setLightboxImageId(block.task.outputImages[0] ?? null, block.task.outputImages)}
-                                    onDownload={() => void handleTaskDownload(block.task)}
-                                    onAddToAssets={() => handleTaskAddToAssets(block.task)}
-                                    onContinueEdit={() => void handleTaskContinueEdit(block.task)}
-                                    onReuse={() => handleReuse(block.task)}
-                                    onEditOutputs={() => editOutputs(block.task)}
-                                    onDelete={() => setConfirmDialog({ title: '删除任务', message: '确定要删除这个任务吗？', action: () => removeTask(block.task) })}
+                                    onOpen={(selectedTask) => setDetailTaskId(selectedTask.id)}
+                                    onPreview={(selectedTask) => setLightboxImageId(selectedTask.outputImages[0] ?? null, selectedTask.outputImages)}
+                                    onDownload={(selectedTask) => void handleTaskDownload(selectedTask)}
+                                    onAddToAssets={handleTaskAddToAssets}
+                                    onContinueEdit={(selectedTask) => void handleTaskContinueEdit(selectedTask)}
+                                    onReuse={handleReuse}
+                                    onEditOutputs={editOutputs}
+                                    onDelete={(selectedTask) => setConfirmDialog({ title: '删除版本', message: '确定要删除当前版本吗？其他历史版本会保留。', action: () => removeTask(selectedTask) })}
                                   />
                                 </div>
                               )

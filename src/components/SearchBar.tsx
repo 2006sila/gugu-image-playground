@@ -1,6 +1,7 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { clearFailedTasks, useStore, taskMatchesFilterStatus, taskMatchesSearchQuery } from '../store'
 import { ALL_FAVORITES_COLLECTION_ID, getTaskFavoriteCollectionIds } from '../lib/favoriteState'
+import { hasTaskAdvancedFilters, taskMatchesAdvancedFilters } from '../lib/taskFilters'
 import { useTooltip } from '../hooks/useTooltip'
 import Select from './Select'
 import { ChevronLeftIcon, CollectionManageIcon, FavoriteIcon, TrashIcon } from './icons'
@@ -53,6 +54,11 @@ export default function SearchBar() {
   const clearSelection = useStore((s) => s.clearSelection)
   const filterFavorite = useStore((s) => s.filterFavorite)
   const setFilterFavorite = useStore((s) => s.setFilterFavorite)
+  const tasks = useStore((s) => s.tasks)
+  const conversations = useStore((s) => s.agentConversations)
+  const advancedTaskFilters = useStore((s) => s.advancedTaskFilters)
+  const setAdvancedTaskFilters = useStore((s) => s.setAdvancedTaskFilters)
+  const resetAdvancedTaskFilters = useStore((s) => s.resetAdvancedTaskFilters)
   const activeFavoriteCollectionId = useStore((s) => s.activeFavoriteCollectionId)
   const setActiveFavoriteCollectionId = useStore((s) => s.setActiveFavoriteCollectionId)
   const openManageCollectionsModal = useStore((s) => s.openManageCollectionsModal)
@@ -64,6 +70,7 @@ export default function SearchBar() {
         if (!task.isFavorite) return false
         if (s.activeFavoriteCollectionId && s.activeFavoriteCollectionId !== ALL_FAVORITES_COLLECTION_ID && !getTaskFavoriteCollectionIds(task, s.defaultFavoriteCollectionId).includes(s.activeFavoriteCollectionId)) return false
       }
+      if (!taskMatchesAdvancedFilters(task, s.advancedTaskFilters)) return false
       return taskMatchesSearchQuery(task, q)
     }).length
   })
@@ -71,6 +78,14 @@ export default function SearchBar() {
   const inCollectionOverview = filterFavorite && !activeFavoriteCollectionId
   const isFailedFilter = filterStatus === 'error'
   const favoriteTooltip = activeFavoriteCollectionId ? '返回收藏夹' : filterFavorite ? '退出收藏夹' : '收藏夹'
+  const modelOptions = useMemo(() => Array.from(new Set(tasks.map((task) => task.apiModel).filter((value): value is string => Boolean(value))))
+    .sort((a, b) => a.localeCompare(b))
+    .map((model) => ({ label: model, value: model })), [tasks])
+  const roundOptions = useMemo(() => conversations.flatMap((conversation) => conversation.rounds.map((round) => ({
+    label: `${conversation.title} · 第 ${round.index} 轮`,
+    value: round.id,
+  }))), [conversations])
+  const hasAdvancedFilters = hasTaskAdvancedFilters(advancedTaskFilters)
 
   useEffect(() => {
     const handleDocumentMouseDown = (event: MouseEvent) => {
@@ -107,6 +122,7 @@ export default function SearchBar() {
           if (!task.isFavorite) return false
           if (state.activeFavoriteCollectionId && state.activeFavoriteCollectionId !== ALL_FAVORITES_COLLECTION_ID && !getTaskFavoriteCollectionIds(task, state.defaultFavoriteCollectionId).includes(state.activeFavoriteCollectionId)) return false
         }
+        if (!taskMatchesAdvancedFilters(task, state.advancedTaskFilters)) return false
         return taskMatchesSearchQuery(task, q)
       })
       .map((task) => task.id)
@@ -130,7 +146,7 @@ export default function SearchBar() {
   }
 
   return (
-    <div ref={rootRef} data-no-drag-select className="mt-6 mb-4 flex gap-3">
+    <div ref={rootRef} data-no-drag-select className="mt-6 mb-4 flex flex-wrap gap-3">
       <div className="flex gap-2 flex-shrink-0 z-20">
         <SearchActionButton
           tooltip={favoriteTooltip}
@@ -182,7 +198,7 @@ export default function SearchBar() {
           </>
         )}
       </div>
-      <div className="relative z-10 flex-1">
+      <div className="relative z-10 min-w-[14rem] flex-1">
         <svg
           className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500"
           fill="none"
@@ -205,6 +221,60 @@ export default function SearchBar() {
           className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition"
         />
       </div>
+      {!inCollectionOverview && (
+        <div className="flex w-full flex-wrap items-center gap-2">
+          <div className="w-[112px]">
+            <Select
+              value={advancedTaskFilters.source}
+              onChange={(source) => setAdvancedTaskFilters({ source, ...(source === 'agent' ? {} : { agentRoundId: '' }) })}
+              options={[
+                { label: '全部来源', value: 'all' },
+                { label: '画廊', value: 'gallery' },
+                { label: 'Agent', value: 'agent' },
+              ]}
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs dark:border-white/[0.08] dark:bg-gray-900"
+            />
+          </div>
+          <div className="min-w-[140px] max-w-[220px] flex-1">
+            <Select
+              value={advancedTaskFilters.model}
+              onChange={(model) => setAdvancedTaskFilters({ model })}
+              options={[{ label: '全部模型', value: '' }, ...modelOptions]}
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs dark:border-white/[0.08] dark:bg-gray-900"
+            />
+          </div>
+          <div className="w-[110px]">
+            <Select
+              value={advancedTaskFilters.date}
+              onChange={(date) => setAdvancedTaskFilters({ date })}
+              options={[
+                { label: '全部日期', value: 'all' },
+                { label: '今天', value: 'today' },
+                { label: '近 7 天', value: '7d' },
+                { label: '近 30 天', value: '30d' },
+              ]}
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs dark:border-white/[0.08] dark:bg-gray-900"
+            />
+          </div>
+          <div className="min-w-[160px] max-w-[260px] flex-1">
+            <Select
+              value={advancedTaskFilters.agentRoundId}
+              onChange={(agentRoundId) => setAdvancedTaskFilters({ agentRoundId, source: agentRoundId ? 'agent' : advancedTaskFilters.source })}
+              options={[{ label: '全部 Agent 轮次', value: '' }, ...roundOptions]}
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs dark:border-white/[0.08] dark:bg-gray-900"
+            />
+          </div>
+          {hasAdvancedFilters && (
+            <button
+              type="button"
+              onClick={resetAdvancedTaskFilters}
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 dark:border-white/[0.08] dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
+            >
+              清除高级筛选
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

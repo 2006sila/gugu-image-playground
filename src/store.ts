@@ -11,6 +11,7 @@ import type {
   PresetConfig,
   AppMode,
   TaskParams,
+  TaskAdvancedFilters,
   InputImage,
   MaskDraft,
   TaskRecord,
@@ -70,6 +71,7 @@ import { createPersistedState, mergePersistedAgentConversations, migratePersiste
 import { addImageSizeParam, createTaskDonePatch, createTaskErrorPatch, deriveAgentImageActualParams, deriveGalleryActualParams, firstActualParams, hasActualParams, hasActualSizeParam, mapActualParamsByImage, mapRevisedPromptsByImage, markInterruptedOpenAIRunningTasks } from './lib/taskState'
 import { stripInjectedCodexCliSizePrompt } from './lib/size'
 import { createTaskRetryVersionMeta } from './lib/taskVersions'
+import { DEFAULT_TASK_ADVANCED_FILTERS } from './lib/taskFilters'
 
 import { loadTextModels, loadTextDefaults, resolveTextModel } from './lib/textModels'
 import { requestAgentProposal, type AgentTextProposal } from './lib/textAgentApi'
@@ -380,6 +382,9 @@ interface AppState {
   setFilterStatus: (status: AppState['filterStatus']) => void
   filterFavorite: boolean
   setFilterFavorite: (f: boolean) => void
+  advancedTaskFilters: TaskAdvancedFilters
+  setAdvancedTaskFilters: (patch: Partial<TaskAdvancedFilters>) => void
+  resetAdvancedTaskFilters: () => void
 
   // 多选
   selectedTaskIds: string[]
@@ -955,6 +960,9 @@ export const useStore = create<AppState>()(
       setFilterStatus: (filterStatus) => set({ filterStatus }),
       filterFavorite: false,
       setFilterFavorite: (filterFavorite) => set(filterFavorite ? { filterFavorite, selectedTaskIds: [], selectedFavoriteCollectionIds: [] } : { filterFavorite, activeFavoriteCollectionId: null, selectedTaskIds: [], selectedFavoriteCollectionIds: [] }),
+      advancedTaskFilters: { ...DEFAULT_TASK_ADVANCED_FILTERS },
+      setAdvancedTaskFilters: (patch) => set((state) => ({ advancedTaskFilters: { ...state.advancedTaskFilters, ...patch }, selectedTaskIds: [] })),
+      resetAdvancedTaskFilters: () => set({ advancedTaskFilters: { ...DEFAULT_TASK_ADVANCED_FILTERS }, selectedTaskIds: [] }),
 
       // Selection
       selectedTaskIds: [],

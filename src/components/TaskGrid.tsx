@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { useStore, reuseConfig, editOutputs, removeTask, taskMatchesFilterStatus, taskMatchesSearchQuery } from '../store'
 import { ALL_FAVORITES_COLLECTION_ID, getTaskFavoriteCollectionIds } from '../lib/favoriteState'
+import { hasTaskAdvancedFilters, taskMatchesAdvancedFilters } from '../lib/taskFilters'
 import TaskCard from './TaskCard'
 import CreationHero from './CreationHero'
 
@@ -9,6 +10,7 @@ export default function TaskGrid() {
   const searchQuery = useStore((s) => s.searchQuery)
   const filterStatus = useStore((s) => s.filterStatus)
   const filterFavorite = useStore((s) => s.filterFavorite)
+  const advancedTaskFilters = useStore((s) => s.advancedTaskFilters)
   const activeFavoriteCollectionId = useStore((s) => s.activeFavoriteCollectionId)
   const defaultFavoriteCollectionId = useStore((s) => s.defaultFavoriteCollectionId)
   const setDetailTaskId = useStore((s) => s.setDetailTaskId)
@@ -42,9 +44,10 @@ export default function TaskGrid() {
         if (activeFavoriteCollectionId && activeFavoriteCollectionId !== ALL_FAVORITES_COLLECTION_ID && !getTaskFavoriteCollectionIds(t, defaultFavoriteCollectionId).includes(activeFavoriteCollectionId)) return false
       }
       if (!taskMatchesFilterStatus(t, filterStatus)) return false
+      if (!taskMatchesAdvancedFilters(t, advancedTaskFilters)) return false
       return taskMatchesSearchQuery(t, q)
     })
-  }, [tasks, searchQuery, filterStatus, filterFavorite, activeFavoriteCollectionId, defaultFavoriteCollectionId])
+  }, [tasks, searchQuery, filterStatus, filterFavorite, activeFavoriteCollectionId, defaultFavoriteCollectionId, advancedTaskFilters])
 
   const handleDelete = (task: typeof tasks[0]) => {
     setConfirmDialog({
@@ -257,7 +260,7 @@ export default function TaskGrid() {
 
   if (!filteredTasks.length) {
     // 全新空态 → 居中创作台（非搜索/筛选时）
-    if (!searchQuery && !filterFavorite) {
+    if (!searchQuery && !filterFavorite && filterStatus === 'all' && !hasTaskAdvancedFilters(advancedTaskFilters)) {
       return (
         <div className="-mt-6">
           <CreationHero />
@@ -282,6 +285,7 @@ export default function TaskGrid() {
           <div key={task.id} className="task-card-wrapper" data-task-id={task.id}>
             <TaskCard
               task={task}
+              allTasks={tasks}
               onClick={(e) => {
                 if (Date.now() < suppressClickUntil.current) {
                   e.preventDefault()

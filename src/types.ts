@@ -4,6 +4,14 @@ export type ApiMode = 'images' | 'responses'
 export const REASONING_EFFORT_VALUES = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 export type ReasoningEffort = typeof REASONING_EFFORT_VALUES[number]
 export type AppMode = 'gallery' | 'agent'
+export type TaskSourceFilter = 'all' | 'gallery' | 'agent'
+export type TaskDateFilter = 'all' | 'today' | '7d' | '30d'
+export interface TaskAdvancedFilters {
+  source: TaskSourceFilter
+  model: string
+  date: TaskDateFilter
+  agentRoundId: string
+}
 export type AgentApiConfigMode = 'off' | 'native' | 'hybrid' | 'proposal'
 export const ZIP_DOWNLOAD_ROUTE_VALUES = [
   'task-selection',

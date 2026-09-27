@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskRecord } from '../types'
 import { DEFAULT_PARAMS } from '../types'
-import { createTaskRetryVersionMeta, getTaskVersionGroupId, getTaskVersionInfo } from './taskVersions'
+import { createTaskRetryVersionMeta, getTaskVersionGroupId, getTaskVersionInfo, getTaskVersions } from './taskVersions'
 
 function task(id: string, patch: Partial<TaskRecord> = {}): TaskRecord {
   return {
@@ -41,6 +41,7 @@ describe('task versions', () => {
       task('task-2', { versionGroupId: 'group-1', retryAttempt: 1, createdAt: 20, retryOfTaskId: 'task-1' }),
     ]
 
+    expect(getTaskVersions(tasks[1], tasks).map((item) => item.id)).toEqual(['task-1', 'task-2', 'task-3'])
     expect(getTaskVersionInfo(tasks[0], tasks)).toMatchObject({ index: 2, count: 3, label: '版本 3/3' })
     expect(getTaskVersionInfo(tasks[1], tasks)).toMatchObject({ index: 0, count: 3, label: '版本 1/3' })
   })

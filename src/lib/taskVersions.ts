@@ -19,11 +19,16 @@ export function createTaskRetryVersionMeta(task: TaskRecord): Pick<TaskRecord, '
   }
 }
 
-export function getTaskVersionInfo(task: TaskRecord, tasks: TaskRecord[]): TaskVersionInfo | null {
+export function getTaskVersions(task: TaskRecord, tasks: TaskRecord[]) {
   const groupId = getTaskVersionGroupId(task)
-  const versions = tasks
+  return tasks
     .filter((item) => getTaskVersionGroupId(item) === groupId)
     .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))
+}
+
+export function getTaskVersionInfo(task: TaskRecord, tasks: TaskRecord[]): TaskVersionInfo | null {
+  const groupId = getTaskVersionGroupId(task)
+  const versions = getTaskVersions(task, tasks)
   if (versions.length <= 1) return null
 
   const index = versions.findIndex((item) => item.id === task.id)
