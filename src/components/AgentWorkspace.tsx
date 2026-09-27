@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useCallback, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import type { AgentMessage, AgentRound, TaskRecord } from '../types'
-import { editOutputs, regenerateAgentAssistantMessage, removeMultipleTasks, removeTask, reuseConfig, useStore } from '../store'
+import { editOutputs, regenerateAgentAssistantMessage, removeMultipleTasks, removeTask, reuseConfig, stopAgentRound, useStore } from '../store'
 import { getActiveAgentRounds, getAgentBranchLeafId, getConversationSearchText, getAgentRoundTaskIds, getAgentSiblingRounds } from '../lib/agentConversationState'
 import { ensureImageCached, getCachedImage } from '../lib/imageCache'
 import { addImageAsset } from '../lib/imageAssets'
@@ -104,6 +104,17 @@ function AgentWebSearchStatusLines({ statuses }: { statuses: AgentWebSearchStatu
 }
 
 const MOBILE_HEADER_PULL_THRESHOLD = 24
+
+function getAgentRoundPhaseLabel(round: AgentRound | null) {
+  if (!round) return null
+  if (round.phase === 'thinking') return '分析中'
+  if (round.phase === 'awaiting-confirmation') return '等待确认'
+  if (round.phase === 'generating') return '生成中'
+  if (round.phase === 'completed') return '已完成'
+  if (round.phase === 'failed') return '失败'
+  if (round.phase === 'cancelled') return '已取消'
+  return round.status === 'running' ? '处理中' : round.status === 'done' ? '已完成' : '失败'
+}
 const MOBILE_HEADER_PULL_MAX_OFFSET = 48
 const MOBILE_HEADER_EDGE_GUARD = 24
 
@@ -836,6 +847,11 @@ export default function AgentWorkspace() {
                     <div className="mb-2 flex items-center justify-between gap-4 text-sm text-gray-500 dark:text-gray-400">
                       <span className="font-medium">
                          <span className={isAssistant ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-200 font-semibold'}>{isAssistant ? 'Agent' : '用户'}</span> <span className="opacity-60 font-normal ml-1">· 第 {round?.index ?? '?'} 轮</span>
+                         {isAssistant && getAgentRoundPhaseLabel(round ?? null) && (
+                           <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-normal text-gray-500 dark:bg-white/[0.06] dark:text-gray-400">
+                             {getAgentRoundPhaseLabel(round ?? null)}
+                           </span>
+                         )}
                       </span>
                     </div>
                     
@@ -908,6 +924,10 @@ export default function AgentWorkspace() {
                                 <div key={block.key} className="mt-4 max-w-sm" onClick={e => e.stopPropagation()}>
                                   <TaskCard
                                     task={block.task}
+                                    allTasks={tasks}
+                                    onCancel={block.task.agentConversationId && block.task.agentRoundId
+                                      ? () => stopAgentRound(block.task.agentConversationId!, block.task.agentRoundId!)
+                                      : undefined}
                                     disableSwipe={true}
                                     onClick={() => setDetailTaskId(block.task.id)}
                                     onPreview={() => setLightboxImageId(block.task.outputImages[0] ?? null, block.task.outputImages)}

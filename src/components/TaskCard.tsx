@@ -6,6 +6,7 @@ import { formatImageRatio } from '../lib/size'
 import { getParamDisplay, ActualValueBadge } from '../lib/paramDisplay'
 import { DEFAULT_FAL_MODEL, DEFAULT_IMAGES_MODEL } from '../lib/apiProfiles'
 import { isAgentTaskPromptPending } from '../lib/taskPromptDisplay'
+import { getTaskVersionInfo } from '../lib/taskVersions'
 import { CodeIcon, DownloadIcon, EditIcon, ExpandIcon, TransparentBgIcon } from './icons'
 import ViewportTooltip from './ViewportTooltip'
 
@@ -19,6 +20,8 @@ interface Props {
   onAddToAssets?: () => void
   onContinueEdit?: () => void
   onPreview?: () => void
+  onCancel?: () => void
+  allTasks?: TaskRecord[]
   isSelected?: boolean
   disableSwipe?: boolean
 }
@@ -72,6 +75,8 @@ export default function TaskCard({
   onAddToAssets,
   onContinueEdit,
   onPreview,
+  onCancel,
+  allTasks = [],
   isSelected,
   disableSwipe,
 }: Props) {
@@ -305,7 +310,8 @@ export default function TaskCard({
   const showSwipeAction = swipeActionActive
   const isFalReconnecting = task.status === 'error' && task.falRecoverable
   const isCustomReconnecting = task.status === 'error' && task.customRecoverable
-  const showRunningTimer = task.status === 'running' || isFalReconnecting || isCustomReconnecting
+  const isRecovering = isFalReconnecting || isCustomReconnecting
+  const showRunningTimer = task.status === 'running' || isRecovering
   const swipeBgClass = showSwipeAction
     ? swipeStartedSelected
       ? 'bg-gray-500 dark:bg-gray-600'
@@ -334,6 +340,29 @@ export default function TaskCard({
   const defaultModelForProvider = task.apiProvider === 'fal' ? DEFAULT_FAL_MODEL : DEFAULT_IMAGES_MODEL
   const showModel = task.apiModel && task.apiModel !== defaultModelForProvider
   const isInterrupted = task.status === 'error' && task.error === '已停止生成。'
+  const versionInfo = getTaskVersionInfo(task, allTasks)
+  const statusLabel = task.status === 'running'
+    ? '生成中'
+    : isRecovering
+      ? '自动恢复中'
+      : isInterrupted
+        ? '已取消'
+        : task.status === 'error'
+          ? '生成失败'
+          : hasPartialOutputFailure
+            ? '部分完成'
+            : '已完成'
+  const statusClassName = task.status === 'running'
+    ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300'
+    : isRecovering
+      ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300'
+      : isInterrupted
+        ? 'bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400'
+        : task.status === 'error'
+          ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300'
+          : hasPartialOutputFailure
+            ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300'
+            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300'
 
   return (
     <div className="relative rounded-xl">
@@ -450,7 +479,7 @@ export default function TaskCard({
               <span className="text-xs text-gray-400 dark:text-gray-500">生成中...</span>
             </div>
           )}
-          {task.status === 'error' && isFalReconnecting && (
+          {task.status === 'error' && isRecovering && (
             <div className="flex flex-col items-center gap-1 px-2">
               <svg
                 className="w-7 h-7 text-yellow-400"
@@ -470,7 +499,7 @@ export default function TaskCard({
               </span>
             </div>
           )}
-          {task.status === 'error' && !isFalReconnecting && (
+          {task.status === 'error' && !isRecovering && (
             <div className="flex flex-col items-center gap-1 px-2">
               <svg
                 className={`w-7 h-7 ${isInterrupted ? 'text-yellow-400' : 'text-red-400'}`}
@@ -559,6 +588,14 @@ export default function TaskCard({
             )}
           </div>
           <div className="mt-auto flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar whitespace-nowrap">
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClassName}`}>{statusLabel}</span>
+              {versionInfo && (
+                <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-600 dark:bg-purple-500/10 dark:text-purple-300">
+                  {versionInfo.label}
+                </span>
+              )}
+            </div>
             {/* 参数与信息：横向滚动 */}
             <div 
               data-tag-scroll-area
@@ -646,7 +683,18 @@ export default function TaskCard({
               onTouchEnd={(e) => e.stopPropagation()}
               onTouchCancel={(e) => e.stopPropagation()}
             >
-              {((task.status === 'error' && !isFalReconnecting) || settings.alwaysShowRetryButton) && (
+              {onCancel && (task.status === 'running' || isRecovering) && (
+                <TaskActionButton
+                  tooltip={isRecovering ? '停止自动恢复' : '取消生成'}
+                  onClick={onCancel}
+                  className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 text-gray-400 hover:text-red-500 transition"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </TaskActionButton>
+              )}
+              {((task.status === 'error' && !isRecovering) || settings.alwaysShowRetryButton) && (
                 <TaskActionButton
                   tooltip="重试任务"
                   onClick={() => retryTask(task)}

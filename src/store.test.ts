@@ -1713,6 +1713,7 @@ describe('fal task recovery', () => {
     })
     expect(useStore.getState().agentConversations[0].rounds[0]).toMatchObject({
       status: 'error',
+      phase: 'cancelled',
       error: '已停止生成。',
     })
   })
@@ -4726,12 +4727,12 @@ describe('agent built-in image tool failure', () => {
     stopAgentResponse('conversation-a')
     await vi.waitFor(() => {
       const round = useStore.getState().agentConversations[0].rounds[0]
-      expect(round).toMatchObject({ status: 'error', error: '已停止生成。' })
+      expect(round).toMatchObject({ status: 'error', phase: 'cancelled', error: '已停止生成。' })
       expect(JSON.stringify(round.responseOutput)).not.toContain('ig-deleted-abort')
     })
 
     const round = useStore.getState().agentConversations[0].rounds[0]
-    expect(round).toMatchObject({ status: 'error', error: '已停止生成。' })
+    expect(round).toMatchObject({ status: 'error', phase: 'cancelled', error: '已停止生成。' })
     expect(JSON.stringify(round.responseOutput)).not.toContain('ig-deleted-abort')
     expect(JSON.stringify(round.responseOutput)).not.toContain('late-abort-base64')
   })
@@ -4747,6 +4748,7 @@ describe('agent built-in image tool failure', () => {
     stopAgentResponse('conversation-a')
     expect(useStore.getState().agentConversations[0].rounds[0]).toMatchObject({
       status: 'error',
+      phase: 'cancelled',
       error: '已停止生成。',
     })
 

@@ -69,6 +69,7 @@ import { ALL_FAVORITES_COLLECTION_ID, DEFAULT_FAVORITE_COLLECTION_ID, createDefa
 import { createPersistedState, mergePersistedAgentConversations, migratePersistedState, normalizePersistedState } from './lib/persistedState'
 import { addImageSizeParam, createTaskDonePatch, createTaskErrorPatch, deriveAgentImageActualParams, deriveGalleryActualParams, firstActualParams, hasActualParams, hasActualSizeParam, mapActualParamsByImage, mapRevisedPromptsByImage, markInterruptedOpenAIRunningTasks } from './lib/taskState'
 import { stripInjectedCodexCliSizePrompt } from './lib/size'
+import { createTaskRetryVersionMeta } from './lib/taskVersions'
 
 import { loadTextModels, loadTextDefaults, resolveTextModel } from './lib/textModels'
 import { requestAgentProposal, type AgentTextProposal } from './lib/textAgentApi'
@@ -1820,6 +1821,8 @@ export async function submitTask(options: { allowFullMask?: boolean; useCurrentA
     createdAt: Date.now(),
     finishedAt: null,
     elapsed: null,
+    versionGroupId: taskId,
+    retryAttempt: 0,
   }
 
   const latestTasks = useStore.getState().tasks
@@ -2053,25 +2056,25 @@ async function generateAgentConversationTitle(
   }
 }
 
+export function stopAgentRound(conversationId: string, roundId: string) {
+  const conversation = useStore.getState().agentConversations.find((item) => item.id === conversationId)
+  const round = conversation?.rounds.find((item) => item.id === roundId)
+  if (!conversation || !round || round.status !== 'running') return false
+
+  const controller = agentRoundControllers.get(getAgentRoundControllerKey(conversationId, roundId))
+  if (controller) controller.abort()
+  const stopped = markAgentRoundStopped(conversationId, roundId)
+  if (stopped) useStore.getState().showToast('已停止 Agent 生成', 'info')
+  return stopped
+}
+
 export function stopAgentResponse(conversationId = useStore.getState().activeAgentConversationId) {
   if (!conversationId) return
   const conversation = useStore.getState().agentConversations.find((item) => item.id === conversationId)
   if (!conversation) return
   const activeRunningRound = [...getActiveAgentRounds(conversation)].reverse().find((round) => round.status === 'running')
   const runningRound = activeRunningRound ?? conversation.rounds.find((round) => round.status === 'running')
-  if (!runningRound) return
-
-  const controller = agentRoundControllers.get(getAgentRoundControllerKey(conversationId, runningRound.id))
-  if (controller) {
-    controller.abort()
-    if (markAgentRoundStopped(conversationId, runningRound.id)) {
-      useStore.getState().showToast('已停止生成', 'info')
-    }
-    return
-  }
-
-  markAgentRoundStopped(conversationId, runningRound.id)
-  useStore.getState().showToast('已停止生成', 'info')
+  if (runningRound) stopAgentRound(conversationId, runningRound.id)
 }
 
 function addAgentReferencedImageIds(target: Set<string>, conversations = useStore.getState().agentConversations, inputDrafts = useStore.getState().agentInputDrafts) {
@@ -2737,6 +2740,8 @@ export async function approveProposalAndGenerate() {
     createdAt: now,
     finishedAt: null,
     elapsed: null,
+    versionGroupId: taskId,
+    retryAttempt: 0,
     sourceMode: 'agent',
     agentConversationId: conversationId,
     agentRoundId: roundId,
@@ -3041,6 +3046,8 @@ async function executeAgentRound(
         createdAt: options.createdAt ?? Date.now(),
         finishedAt: null,
         elapsed: null,
+        versionGroupId: undefined,
+        retryAttempt: 0,
         sourceMode: 'agent',
         agentConversationId: conversationId,
         agentRoundId: roundId,
@@ -4244,6 +4251,7 @@ export async function retryTask(task: TaskRecord) {
     agentToolCallId: task.agentToolCallId,
     agentBatchCallId: task.agentBatchCallId,
     agentBatchItemId: task.agentBatchItemId,
+    ...createTaskRetryVersionMeta(task),
   }
 
   const latestTasks = useStore.getState().tasks

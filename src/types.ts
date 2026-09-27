@@ -261,6 +261,12 @@ export interface TaskRecord {
   agentBatchItemId?: string
   /** Agent 图像工具实际动作 */
   agentToolAction?: 'generate' | 'edit' | 'auto' | string
+  /** 重试来源任务 ID；用于把重试结果和原始结果关联起来 */
+  retryOfTaskId?: string
+  /** 同一任务版本链中的序号，初始任务为 0 */
+  retryAttempt?: number
+  /** 同一轮次中同一图片请求的版本组 ID */
+  versionGroupId?: string
 }
 
 export interface FavoriteCollection {
