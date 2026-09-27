@@ -37,6 +37,7 @@ const task = (id: string, patch: Partial<TaskRecord> = {}): TaskRecord => ({
   createdAt: patch.createdAt ?? 1,
   finishedAt: patch.finishedAt ?? 2,
   elapsed: patch.elapsed ?? 1,
+  ...(patch.agentRoundId ? { agentRoundId: patch.agentRoundId } : {}),
   ...(patch.agentToolCallId ? { agentToolCallId: patch.agentToolCallId } : {}),
   ...(patch.agentBatchCallId ? { agentBatchCallId: patch.agentBatchCallId } : {}),
 })
@@ -96,6 +97,19 @@ describe('agent assistant blocks', () => {
 
     expect(blocks.map((block) => block.type)).toEqual(['web-search', 'text', 'image-task', 'text'])
     expect(blocks.filter((block) => block.type === 'text').map((block) => block.content)).toEqual(['搜索结果', '生成完成'])
+  })
+
+  it('recovers task slots from the task-side Agent round index when round output ids are missing', () => {
+    const imageTask = task('task-from-index', { agentRoundId: 'round-1' })
+    const currentRound = round({ id: 'round-1', outputTaskIds: [] })
+
+    expect(getRoundTaskSlots(currentRound, [imageTask])).toEqual([
+      { taskId: imageTask.id, task: imageTask },
+    ])
+    expect(blockOrder(getAgentAssistantBlocks(currentRound, getRoundTaskSlots(currentRound, [imageTask]), [imageTask], true))).toEqual([
+      'text:undefined',
+      `image:${imageTask.id}`,
+    ])
   })
 
   it('keeps deleted task placeholders in round slot order', () => {

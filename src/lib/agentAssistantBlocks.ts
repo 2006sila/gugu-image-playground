@@ -1,4 +1,5 @@
 import type { AgentRound, ResponsesOutputItem, TaskRecord } from '../types'
+import { getAgentRoundTaskIds } from './agentConversationState'
 import { collectWebSearchCalls, getAgentRoundOutputItems, getWebSearchStatusForCalls, type AgentWebSearchStatus } from './agentWebSearch'
 
 const AGENT_STOPPED_MESSAGE = '已停止生成。'
@@ -244,7 +245,15 @@ export function getAgentAssistantCopyContent(fallbackContent: string, blocks: Ag
 
 export function getRoundTaskSlots(round: AgentRound | null, tasks: TaskRecord[]): AgentRoundTaskSlot[] {
   if (!round) return []
-  return round.outputTaskIds.map((taskId) => ({
+
+  // outputTaskIds 是持久化的主索引；agentRoundId 是任务侧索引。
+  // 两者取并集，兼容旧数据、异步更新竞态以及历史上漏写 round.outputTaskIds 的任务。
+  const taskIds = Array.from(new Set([
+    ...round.outputTaskIds,
+    ...getAgentRoundTaskIds(round, tasks),
+  ]))
+
+  return taskIds.map((taskId) => ({
     taskId,
     task: tasks.find((task) => task.id === taskId) ?? null,
   }))

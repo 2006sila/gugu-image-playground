@@ -2519,6 +2519,7 @@ export async function submitProposalAgentMessage() {
   const now = Date.now()
   const roundId = genId()
   const userMessageId = genId()
+  const assistantMessageId = genId()
   const conversationId = state.activeAgentConversationId ?? state.createAgentConversation()
 
   const userMessage: AgentMessage = {
@@ -2545,6 +2546,7 @@ export async function submitProposalAgentMessage() {
         index: current.rounds.length + 1,
         parentRoundId: current.rounds[current.rounds.length - 1]?.id ?? null,
         userMessageId,
+        assistantMessageId,
         prompt: trimmedPrompt,
         inputImageIds,
         outputTaskIds: [],
@@ -2555,6 +2557,7 @@ export async function submitProposalAgentMessage() {
       },
     ],
     messages: [...current.messages, userMessage],
+    activeRoundId: roundId,
     updatedAt: now,
   }))
 
@@ -2582,7 +2585,7 @@ export async function submitProposalAgentMessage() {
       messages: [
         ...current.messages,
         {
-          id: genId(),
+          id: assistantMessageId,
           role: 'assistant' as const,
           content: `📋 提案：${proposal.action === 'edit' ? '修改图片' : '生成新图'}${proposal.reason ? `\n\n${proposal.reason}` : ''}\n\n请在下方卡片确认或取消。`,
           roundId,
@@ -2592,14 +2595,26 @@ export async function submitProposalAgentMessage() {
     }))
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    updateAgentConversation(conversationId, (current) => ({
-      ...current,
-      rounds: current.rounds.map((r) => (r.id === roundId ? { ...r, status: 'error' as const, error: message, finishedAt: Date.now() } : r)),
-      messages: [
-        ...current.messages,
-        { id: genId(), role: 'assistant' as const, content: `提案失败：${message}`, roundId, createdAt: Date.now() },
-      ],
-    }))
+    updateAgentConversation(conversationId, (current) => {
+      const round = current.rounds.find((item) => item.id === roundId)
+      const targetMessageId = round?.assistantMessageId ?? assistantMessageId
+      const errorMessage: AgentMessage = {
+        id: targetMessageId,
+        role: 'assistant',
+        content: `提案失败：${message}`,
+        roundId,
+        createdAt: Date.now(),
+      }
+      return {
+        ...current,
+        rounds: current.rounds.map((r) => (r.id === roundId
+          ? { ...r, assistantMessageId: targetMessageId, status: 'error' as const, error: message, finishedAt: Date.now() }
+          : r)),
+        messages: current.messages.some((item) => item.id === targetMessageId)
+          ? current.messages.map((item) => item.id === targetMessageId ? errorMessage : item)
+          : [...current.messages, errorMessage],
+      }
+    })
   } finally {
     useStore.getState().setAgentProposalStreaming(false)
   }
@@ -2611,6 +2626,11 @@ export async function approveProposalAndGenerate() {
   const pending = state.agentPendingProposal
   if (!pending) return
   const { proposal, inputImageIds, roundId, conversationId } = pending
+  const proposalConversation = state.agentConversations.find((conversation) => conversation.id === conversationId)
+  const proposalRound = proposalConversation?.rounds.find((round) => round.id === roundId)
+  const assistantMessageId = proposalRound?.assistantMessageId
+    ?? proposalConversation?.messages.find((message) => message.roundId === roundId && message.role === 'assistant')?.id
+    ?? genId()
   useStore.setState({ agentPendingProposal: null })
 
   const normalized = normalizeSettings(state.settings)
@@ -2657,28 +2677,44 @@ export async function approveProposalAndGenerate() {
     sourceMode: 'agent',
     agentConversationId: conversationId,
     agentRoundId: roundId,
+    agentMessageId: assistantMessageId,
   }
 
   // 任务入全局列表（画廊历史也能看到）
   useStore.getState().setTasks([task, ...useStore.getState().tasks])
   void putTask(task)
 
-  // 挂到当前轮 + 生成 assistant 消息
-  // 把任务挂到轮 + 已存在的提案 assistant 消息（每轮只渲染一条 assistant 消息）
-  updateAgentConversation(conversationId, (current) => ({
-    ...current,
-    rounds: current.rounds.map((r) =>
-      r.id === roundId
-        ? { ...r, status: 'running' as const, outputTaskIds: [taskId], finishedAt: null }
-        : r,
-    ),
-    messages: current.messages.map((m) =>
-      m.roundId === roundId && m.role === 'assistant'
-        ? { ...m, outputTaskIds: [taskId] }
-        : m,
-    ),
-    updatedAt: now,
-  }))
+  // 把任务挂到同一轮和同一条 assistant 消息；Agent 对话每轮只渲染这条消息。
+  updateAgentConversation(conversationId, (current) => {
+    const round = current.rounds.find((item) => item.id === roundId)
+    const targetAssistantMessageId = round?.assistantMessageId
+      ?? current.messages.find((message) => message.roundId === roundId && message.role === 'assistant')?.id
+      ?? assistantMessageId
+    return {
+      ...current,
+      rounds: current.rounds.map((r) =>
+        r.id === roundId
+          ? { ...r, assistantMessageId: targetAssistantMessageId, status: 'running' as const, outputTaskIds: [taskId], finishedAt: null }
+          : r,
+      ),
+      messages: current.messages.some((message) => message.id === targetAssistantMessageId)
+        ? current.messages.map((message) =>
+            message.id === targetAssistantMessageId ? { ...message, outputTaskIds: [taskId] } : message,
+          )
+        : [
+            ...current.messages,
+            {
+              id: targetAssistantMessageId,
+              role: 'assistant' as const,
+              content: '',
+              roundId,
+              outputTaskIds: [taskId],
+              createdAt: now,
+            },
+          ],
+      updatedAt: now,
+    }
+  })
 
   // 复用画廊的执行管线（带重试/恢复能力）
   executeTask(taskId)
