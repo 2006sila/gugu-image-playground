@@ -10,14 +10,12 @@
     "deploy:cf": "npm run build && wrangler deploy",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "server": "node server/server.js"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@fal-ai/client": "^1.10.0",
     "@streamdown/math": "^1.0.2",
     "core-js": "^3.49.0",
-    "express": "^5.2.1",
     "fflate": "^0.8.3",
     "gifenc": "^1.0.3",
     "katex": "^0.16.47",

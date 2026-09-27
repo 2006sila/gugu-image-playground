@@ -55,7 +55,6 @@ Nova Image Studio 是一个面向个人使用的 AI 图像生成工作台。纯�
 ### 📁 数据与隐私
 - 全部数据存浏览器 IndexedDB，不经任何第三方
 - 多收藏夹管理、批量 ZIP 打包下载、一键备份恢复
-- 可选 Node 服务端：任务队列 + SSE 状态推送 + 产物落盘（关浏览器任务继续跑）
 
 ## 🚀 快速开始
 
@@ -70,9 +69,6 @@ npm run dev
 
 # 构建生产版本（dist/）
 npm run build
-
-# 可选：服务器模式（任务队列 + 静态托管，http://localhost:8787）
-npm run server
 ```
 
 Windows 用户可直接双击 `START.bat`（日常启动）/ `INSTALL.bat`（首次安装）。

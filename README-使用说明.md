@@ -9,11 +9,11 @@
 2. 完成后双击 **START.bat**
 
 ### 日常使用
-双击 **START.bat**，选择：
-- **[1] Dev mode** —— 开发模式（推荐日常使用），浏览器自动打开 http://localhost:5173
-- **[2] Server mode** —— 服务器模式（带任务队列），浏览器自动打开 http://localhost:8787
-  - 关闭浏览器任务继续在后台跑
-  - 生成结果保存在 `server/data/images/`
+双击 **START.bat**，选择启动开发模式，浏览器自动打开：
+
+```text
+http://localhost:5173
+```
 
 ## 首次启动后必做配置
 
@@ -60,12 +60,8 @@ OpenAI Responses / OpenAI Chat / Anthropic Messages / Google Gemini
 **Q: 打开是白屏/旧界面？**
 强刷：`Ctrl + Shift + R`
 
-**Q: Server 模式怎么停止？**
-关闭那个命令行窗口即可。
-
 **Q: 数据存在哪？**
-全部本地。历史在浏览器 IndexedDB，Server 模式的产物在 `server/data/`。设置 → 数据管理 可导出备份。
+全部本地。历史在浏览器 IndexedDB。设置 → 数据管理 可导出备份。
 
 **Q: 端口被占用？**
-Dev 模式改用 `npx vite --port 其他端口`；Server 模式设置环境变量 `PORT`，如：
-`set PORT=9000 && node server/server.js`
+开发模式改用 `npx vite --port 其他端口`。
