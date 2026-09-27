@@ -2661,7 +2661,7 @@ export async function approveProposalAndGenerate() {
   void putTask(task)
 
   // 挂到当前轮 + 生成 assistant 消息
-  const assistantMessageId = genId()
+  // 把任务挂到轮 + 已存在的提案 assistant 消息（每轮只渲染一条 assistant 消息）
   updateAgentConversation(conversationId, (current) => ({
     ...current,
     rounds: current.rounds.map((r) =>
@@ -2669,17 +2669,11 @@ export async function approveProposalAndGenerate() {
         ? { ...r, status: 'running' as const, outputTaskIds: [taskId], finishedAt: null }
         : r,
     ),
-    messages: [
-      ...current.messages,
-      {
-        id: assistantMessageId,
-        role: 'assistant' as const,
-        content: '',
-        roundId,
-        outputTaskIds: [taskId],
-        createdAt: Date.now(),
-      },
-    ],
+    messages: current.messages.map((m) =>
+      m.roundId === roundId && m.role === 'assistant'
+        ? { ...m, outputTaskIds: [taskId] }
+        : m,
+    ),
     updatedAt: now,
   }))
 
