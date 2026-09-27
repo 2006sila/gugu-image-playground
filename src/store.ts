@@ -2686,6 +2686,13 @@ export async function approveProposalAndGenerate() {
   // 复用画廊的执行管线（带重试/恢复能力）
   executeTask(taskId)
 
+  // 按用户设置清空输入栏（提案模式的 prompt 不再需要）
+  if (state.settings.clearInputAfterSubmit) {
+    state.setPrompt('')
+    state.clearInputImages()
+  }
+  state.setReusedTaskApiProfile(null)
+
   // 轮询任务状态，结束后标记轮完成
   const poll = async () => {
     for (;;) {
