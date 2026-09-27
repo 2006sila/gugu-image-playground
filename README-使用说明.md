@@ -1,6 +1,6 @@
-# Nova Image Studio
+# gugu image playground
 
-融合版 AI 图像生成工作台（gpt_image_playground + nova-image-studio 融合）。
+本地优先的融合版 AI 图像生成与编辑工作台（基于 gpt_image_playground + nova-image-studio）。
 
 ## 快速开始
 
@@ -19,6 +19,7 @@ http://localhost:5173
 
 1. 右上角 **⚙ 设置** → **API 配置**：填入你的中转站地址和 API Key（模型如 `gpt-image-2.5`）
 2. ⚙ 设置 → **文本模型** → 添加一个文本模型（如 `deepseek-chat`，协议选 OpenAI Chat），并设为各功能的默认模型
+3. ⚙ 设置 → **Agent 配置** → 查看能力诊断；优先选择提案模式，并为其指定文本大脑和图像配置
 
 ## 内置提示词库
 
@@ -40,7 +41,7 @@ python scripts/fetch-nb-thumbs.py
 | 功能 | 说明 |
 |---|---|
 | 画廊 | 生成历史、收藏夹、批量下载 |
-| Agent | 对话式改图（提案确认模式，兼容任意中转） |
+| Agent | 对话式改图、提案确认、版本历史与版本切换（兼容任意中转） |
 | 反推提示词 | 上传参考图，AI 反推提示词（支持风格提取/高保真复刻） |
 | 无限画布 | 多图迭代编排，连线生成 |
 | GIF 生成 | 一句话生成 12 帧动画，导出 GIF |
@@ -62,6 +63,9 @@ OpenAI Responses / OpenAI Chat / Anthropic Messages / Google Gemini
 
 **Q: 数据存在哪？**
 全部本地。历史在浏览器 IndexedDB。设置 → 数据管理 可导出备份。
+
+**Q: 能力诊断显示可用，为什么真实请求仍失败？**
+能力诊断只检查本地字段和协议兼容性，不会发送请求或消耗额度。模型权限、网关兼容性和上游工具开放情况需通过实际生成确认。
 
 **Q: 端口被占用？**
 开发模式改用 `npx vite --port 其他端口`。

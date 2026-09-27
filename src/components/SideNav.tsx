@@ -62,7 +62,7 @@ export default function SideNav() {
     <aside className="fixed left-0 top-0 z-40 hidden h-full w-56 flex-col border-r border-gray-200/70 bg-white/80 backdrop-blur-xl dark:border-white/[0.06] dark:bg-gray-950/80 xl:flex">
       {/* Logo */}
       <div className="px-4 pb-2 pt-5">
-        <h1 className="fusion-brand-gradient text-lg font-extrabold tracking-tight">Nova Image Studio</h1>
+        <h1 className="fusion-brand-gradient text-lg font-extrabold tracking-tight">gugu image playground</h1>
         <p className="mt-0.5 text-[11px] text-zinc-400">AI 图像生成工作台</p>
       </div>
 

@@ -6,6 +6,7 @@
 
 import { useMemo, useState } from 'react'
 import { Check, Plus, Trash2, ChevronDown } from 'lucide-react'
+import { diagnoseTextModel } from '../../lib/modelCapabilities'
 import {
   TEXT_PROTOCOLS,
   TEXT_TASK_KEYS,
@@ -18,6 +19,7 @@ import {
   type TextProviderProtocol,
   type TextDefaults,
 } from '../../lib/textModels'
+import CapabilityDiagnosticCard from './CapabilityDiagnosticCard'
 
 function emptyModel(): TextModelConfig {
   return {
@@ -139,6 +141,7 @@ export default function TextModelsTab() {
               {/* 展开编辑区 */}
               {expanded && (
                 <div className="space-y-3 border-t border-gray-100 px-4 py-3.5 dark:border-white/[0.06]">
+                  <CapabilityDiagnosticCard diagnostic={diagnoseTextModel(m)} compact />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className="block">
                       <span className="mb-1 block text-[11px] text-gray-400">名称</span>

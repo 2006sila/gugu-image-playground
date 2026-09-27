@@ -157,22 +157,22 @@ export default function Header() {
                 <>
                   <span className="min-w-0 truncate text-[17px] font-bold tracking-tight text-gray-800 dark:text-gray-100 sm:hidden" title={favoriteCollectionTitle}>{favoriteCollectionTitle}</span>
                   <a
-                    href="https://github.com/CookSleep/gpt_image_playground"
+                    href="https://github.com/2006sila/nova-image-studio-fusion"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="fusion-brand-gradient hidden text-lg font-extrabold tracking-tight sm:inline"
                   >
-                    Nova Image Studio
+                    gugu image playground
                   </a>
                 </>
               ) : (
                 <a
-                  href="https://github.com/CookSleep/gpt_image_playground"
+                  href="https://github.com/2006sila/nova-image-studio-fusion"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="fusion-brand-gradient text-[17px] sm:text-lg font-extrabold tracking-tight xl:opacity-0 xl:pointer-events-none"
                 >
-                  Nova Image Studio
+                  gugu image playground
                 </a>
               )}
               {hasUpdate && latestRelease && (

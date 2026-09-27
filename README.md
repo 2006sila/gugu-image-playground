@@ -1,8 +1,8 @@
 <div align="center">
 
-# Nova Image Studio
+# gugu image playground
 
-**融合版 AI 图像生成与编辑工作台**
+**本地优先的 AI 图像生成与编辑工作台**
 
 基于 [gpt_image_playground](https://github.com/CookSleep/gpt_image_playground) 与 [nova-image-studio](https://github.com/tianjiangqiji/nova-image-studio) 融合二次开发
 
@@ -12,7 +12,7 @@
 
 ## 📖 简介
 
-Nova Image Studio 是一个面向个人使用的 AI 图像生成工作台。纯前端架构（浏览器直连 API，数据全本地），支持多协议图像与文本模型，内置提示词广场（2200+ 条带预览图）、反推提示词、无限画布、GIF 生成、提案式 Agent 等功能。
+gugu image playground 是一个面向个人使用的 AI 图像生成工作台。纯前端架构（浏览器直连 API，数据全本地），支持多协议图像与文本模型，内置提示词广场（2200+ 条带预览图）、反推提示词、无限画布、GIF 生成、提案式 Agent 等功能。
 
 ## ✨ 功能特性
 
@@ -26,7 +26,9 @@ Nova Image Studio 是一个面向个人使用的 AI 图像生成工作台。纯�
 ### 🤖 Agent 模式
 - 提案模式：任意协议的文本模型当大脑分析意图 → 生成生图提案 → 用户确认后出图（**兼容不支持 Responses API 的中转**）
 - 原生 / 混合模式：基于 Responses API 的多轮对话式生成
+- 对话内版本历史、版本切换、重试、继续编辑、下载、收藏与删除
 - 分支与重新生成、@ 引用参考图
+- 图像 API、文本模型和 Agent 组合的静态能力诊断，不发送请求、不消耗额度
 
 ### 🔌 多协议支持
 
@@ -43,6 +45,7 @@ Nova Image Studio 是一个面向个人使用的 AI 图像生成工作台。纯�
 - 内置 **2200+ 条**提示词，13 个分类，**2100+ 条带本地预览图**（离线可用）
 - 数据来源：awesome-gpt-image-2、ZeroLu/awesome-gpt-image、YouMind/awesome-nano-banana-pro-prompts、ImgEdify/Awesome-GPT4o-Image-Prompts、大香蕉提示词收纳盒（见仓库内来源列表）
 - 搜索 / 分类筛选 / 分页 / 收藏到我的收藏
+- 生成画廊支持来源、模型、日期和 Agent 轮次筛选
 - 自定义模板添加
 
 ### 🔍 其他工具

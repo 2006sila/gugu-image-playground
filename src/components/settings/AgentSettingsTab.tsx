@@ -5,8 +5,11 @@ import {
   type AppSettings,
 } from '../../types'
 import { normalizeAgentMaxToolRounds } from '../../lib/apiProfiles'
+import { diagnoseAgentConfiguration } from '../../lib/modelCapabilities'
 import { isPresetAgentFieldLocked } from '../../lib/presetConfig'
+import { loadTextDefaults, loadTextModels } from '../../lib/textModels'
 import Select from '../Select'
+import CapabilityDiagnosticCard from './CapabilityDiagnosticCard'
 
 interface SelectOption {
   label: string
@@ -38,8 +41,12 @@ export default function AgentSettingsTab({
   commitSettings,
   commitAgentMaxToolRounds,
 }: AgentSettingsTabProps) {
+  const diagnostic = diagnoseAgentConfiguration(draft, loadTextModels(), loadTextDefaults())
+
   return (
     <div className="space-y-4">
+      <CapabilityDiagnosticCard diagnostic={diagnostic} />
+
       <div className="block">
         <div className="mb-1 flex items-center justify-between gap-3">
           <span className="block text-sm text-gray-600 dark:text-gray-300">使用独立的 API 配置</span>

@@ -1,7 +1,7 @@
 {
-  "name": "GPT Image Playground",
-  "short_name": "GPT Image",
-  "description": "GPT Image Playground 图像生成工作台",
+  "name": "gugu image playground",
+  "short_name": "gugu image",
+  "description": "gugu image playground AI 图像生成与编辑工作台",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

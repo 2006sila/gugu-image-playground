@@ -1,9 +1,9 @@
 @echo off
-title Nova Image Studio Launcher
+title gugu image playground Launcher
 cd /d "%~dp0"
 
 echo ============================================
-echo   Nova Image Studio Launcher
+echo   gugu image playground Launcher
 echo ============================================
 echo.
 echo   [1] Start dev mode (browser connects to API)

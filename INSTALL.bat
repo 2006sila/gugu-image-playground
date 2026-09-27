@@ -1,9 +1,9 @@
 @echo off
-title Nova Image Studio - Install
+title gugu image playground - Install
 cd /d "%~dp0"
 
 echo ============================================
-echo   Nova Image Studio - First Time Setup
+echo   gugu image playground - First Time Setup
 echo ============================================
 echo.
 echo This will install dependencies and build the app.

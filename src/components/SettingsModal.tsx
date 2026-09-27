@@ -42,6 +42,7 @@ import {
 import { copyTextToClipboard, getClipboardFailureMessage } from '../lib/clipboard'
 import { createCustomProfileImportUrl } from '../lib/profileImportUrl'
 import { requestBrowserNotificationPermission, type BrowserNotificationPermissionResult } from '../lib/browserNotification'
+import { diagnoseImageProfile } from '../lib/modelCapabilities'
 import { DEFAULT_AGENT_MAX_TOOL_ROUNDS, DEFAULT_STREAM_PARTIAL_IMAGES, REASONING_EFFORT_VALUES, type AgentApiConfigMode, type ApiProfile, type AppSettings, type CustomProviderDefinition, type ReasoningEffort, type ZipDownloadRoute } from '../types'
 import {
   CUSTOM_PROVIDER_LLM_PROMPT,
@@ -61,6 +62,7 @@ import TextModelsTab from './settings/TextModelsTab'
 import CustomProviderModal from './settings/CustomProviderModal'
 import ProfileImportUrlModal, { type CopyImportUrlOptions } from './settings/ProfileImportUrlModal'
 import ZipDownloadRouteModal, { ZIP_DOWNLOAD_ROUTE_OPTIONS } from './settings/ZipDownloadRouteModal'
+import CapabilityDiagnosticCard from './settings/CapabilityDiagnosticCard'
 import MarkdownRenderer from './MarkdownRenderer'
 
 function newId(prefix: string) {
@@ -1440,6 +1442,8 @@ export default function SettingsModal() {
                   )}
                 </div>
 
+              <CapabilityDiagnosticCard diagnostic={diagnoseImageProfile(activeProfile)} />
+
               {/* 1. 配置名称 */}
               <label className="block">
                 <span className="mb-1.5 block text-sm text-gray-600 dark:text-gray-300">配置名称</span>
@@ -1952,7 +1956,7 @@ export default function SettingsModal() {
                   > 本站点基于开源项目 [GPT Image Playground](https://github.com/CookSleep/gpt_image_playground) ([MIT](https://github.com/CookSleep/gpt_image_playground/blob/main/LICENSE)) 修改。
                 */}
                 <a
-                  href="https://github.com/CookSleep/gpt_image_playground"
+                  href="https://github.com/2006sila/nova-image-studio-fusion"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group flex flex-col items-center outline-none"
@@ -1960,19 +1964,19 @@ export default function SettingsModal() {
                   <div className="mb-5 flex h-[88px] w-[88px] items-center justify-center rounded-full border border-gray-200/80 bg-gray-50/50 text-gray-800 transition-colors group-hover:bg-gray-100 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-gray-100 dark:group-hover:bg-white/[0.06]">
                     <GithubIcon className="h-11 w-11" />
                   </div>
-                  <h4 className="text-[17px] font-bold text-gray-800 dark:text-gray-100">GPT Image Playground</h4>
+                  <h4 className="text-[17px] font-bold text-gray-800 dark:text-gray-100">gugu image playground</h4>
                   <p className="mt-1.5 text-[13px] text-gray-500 transition-colors group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300">
-                    @CookSleep
+                    @2006sila
                   </p>
                 </a>
                 
-                <p className="mt-8 mb-6 max-w-[360px] text-center text-[13px] leading-relaxed text-gray-500 dark:text-gray-400">
-                  本项目的成长离不开每一位用户的使用、反馈、贡献与支持，感谢一路有你。
+                <p className="mt-8 mb-6 max-w-[440px] text-center text-[13px] leading-relaxed text-gray-500 dark:text-gray-400">
+                  融合并二次开发自 GPT Image Playground（MIT）与 nova-image-studio（AGPL-3.0），完整许可与来源见仓库 LICENSE 和 README。
                 </p>
 
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <a
-                    href="https://github.com/CookSleep/gpt_image_playground/issues"
+                    href="https://github.com/2006sila/nova-image-studio-fusion/issues"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-gray-100/80 px-5 py-2.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 hover:text-gray-900 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.1] dark:hover:text-white"
@@ -1983,15 +1987,13 @@ export default function SettingsModal() {
                     反馈问题
                   </a>
                   <a
-                    href="https://www.ifdian.net/a/cooksleep"
+                    href="https://github.com/CookSleep/gpt_image_playground"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-gray-100/80 px-5 py-2.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 hover:text-gray-900 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.1] dark:hover:text-white"
                   >
-                    <svg className="h-4 w-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                    赞助作者
+                    <GithubIcon className="h-4 w-4 opacity-70" />
+                    GPT Image Playground
                   </a>
                 </div>
               </div>
