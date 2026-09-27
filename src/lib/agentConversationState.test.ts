@@ -88,6 +88,36 @@ describe('agent conversation state', () => {
     expect(normalized[0].rounds.map((item) => item.parentRoundId)).toEqual(expectedParentRoundIds)
   })
 
+  it('restores awaiting-confirmation phase and persisted proposal metadata', () => {
+    const normalized = normalizeAgentConversations([{
+      id: 'conversation-proposal',
+      title: '提案恢复',
+      rounds: [{
+        ...round('round-proposal', null, 1),
+        status: 'running',
+        phase: 'awaiting-confirmation',
+        proposalAction: 'edit',
+        proposalPrompt: '保持主体不变，仅调整背景',
+        proposalReason: '根据用户的修改意图生成编辑提案',
+        proposalReferencedImageIndexes: [1, 2, 'bad'],
+        proposalAspectRatio: '16:9',
+      }],
+      messages: [],
+      createdAt: 1,
+      updatedAt: 2,
+    }])
+
+    expect(normalized[0].rounds[0]).toMatchObject({
+      phase: 'awaiting-confirmation',
+      status: 'running',
+      proposalAction: 'edit',
+      proposalPrompt: '保持主体不变，仅调整背景',
+      proposalReason: '根据用户的修改意图生成编辑提案',
+      proposalReferencedImageIndexes: [1, 2],
+      proposalAspectRatio: '16:9',
+    })
+  })
+
   it('filters malformed and orphaned records while preserving legacy field defaults', () => {
     const normalized = normalizeAgentConversations([null, {}, { id: '' }, {
       id: 'conversation-a',

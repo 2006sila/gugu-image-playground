@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import type {
   AgentConversation,
   AgentInputDraft,
-  AgentMessage, AgentRoundStatus,
+  AgentMessage, AgentRoundStatus, AgentRoundPhase,
   AgentRound,
   ApiMode,
   ApiProfile,
@@ -1441,7 +1441,8 @@ async function completeRecoveredFalTask(task: TaskRecord, result: Awaited<Return
   })
   useStore.getState().showToast(`fal.ai 任务已恢复，共 ${outputIds.length} 张图片`, 'success')
   if (!isAgentTask(task)) showTaskCompletionNotification('图像生成完成', `fal.ai 任务已恢复，共 ${outputIds.length} 张图片。`)
-  else void continueRecoveredAgentRound(task.id)
+  else if (task.agentToolCallId || task.agentBatchCallId) void continueRecoveredAgentRound(task.id)
+  else if (isAgentTask(task)) void watchAgentTaskCompletion(task.id)
 }
 
 async function recoverFalTask(taskId: string) {
@@ -1473,7 +1474,10 @@ async function recoverFalTask(taskId: string) {
       ...getRawErrorPayload(err),
       falRecoverable: false,
     })
-    if (isAgentTask(task)) void continueRecoveredAgentRound(taskId)
+    if (isAgentTask(task)) {
+      if (task.agentToolCallId || task.agentBatchCallId) void continueRecoveredAgentRound(taskId)
+      else void watchAgentTaskCompletion(taskId)
+    }
   }
 }
 
@@ -1505,6 +1509,32 @@ export async function initStore() {
     await replaceStoredAgentConversations(loadedAgentConversations)
   } else {
     useStore.setState({ agentConversationsLoaded: true })
+  }
+
+  // 提案内容随轮次保存，刷新后重建确认卡片，避免用户必须重新请求文本模型。
+  const pendingProposalRound = loadedAgentConversations
+    .flatMap((conversation) => conversation.rounds.map((round) => ({ conversation, round })))
+    .filter(({ round }) => round.phase === 'awaiting-confirmation'
+      && (round.proposalAction === 'generate' || round.proposalAction === 'edit')
+      && typeof round.proposalPrompt === 'string'
+      && round.proposalPrompt.trim().length > 0)
+    .sort((a, b) => b.round.createdAt - a.round.createdAt)[0]
+  if (pendingProposalRound) {
+    const { conversation, round } = pendingProposalRound
+    useStore.setState({
+      agentPendingProposal: {
+        conversationId: conversation.id,
+        roundId: round.id,
+        inputImageIds: [...round.inputImageIds],
+        proposal: {
+          action: round.proposalAction!,
+          prompt: round.proposalPrompt!,
+          reason: round.proposalReason ?? '',
+          referencedImageIndexes: round.proposalReferencedImageIndexes ?? [],
+          ...(round.proposalAspectRatio ? { aspectRatio: round.proposalAspectRatio } : {}),
+        },
+      },
+    })
   }
   const shouldRewritePersistedLocalState = agentConversationMigrationPending
   agentConversationPersistenceReady = true
@@ -1828,6 +1858,28 @@ function getAgentRoundControllerKey(conversationId: string, roundId: string) {
   return `${conversationId}:${roundId}`
 }
 
+async function watchAgentTaskCompletion(taskId: string) {
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    const task = useStore.getState().tasks.find((item) => item.id === taskId)
+    if (!task || !task.agentConversationId || !task.agentRoundId) return
+    const recoverable = task.status === 'error' && (task.falRecoverable || task.customRecoverable)
+    if (task.status !== 'done' && task.status !== 'error') continue
+    if (recoverable) return
+
+    const finalStatus: AgentRoundStatus = task.status === 'done' ? 'done' : 'error'
+    const phase: AgentRoundPhase = finalStatus === 'done' ? 'completed' : 'failed'
+    updateAgentConversation(task.agentConversationId, (current) => ({
+      ...current,
+      updatedAt: Date.now(),
+      rounds: current.rounds.map((round) => round.id === task.agentRoundId
+        ? { ...round, phase, status: finalStatus, error: task.error, finishedAt: Date.now() }
+        : round),
+    }))
+    return
+  }
+}
+
 function getDeletedActiveAgentTasks(conversationId: string, roundId: string, controller: AbortController) {
   return Array.from(deletedActiveAgentTasks.values())
     .filter((entry) => entry.controller === controller && entry.task.agentConversationId === conversationId && entry.task.agentRoundId === roundId)
@@ -1922,6 +1974,7 @@ function markAgentRoundStopped(conversationId: string, roundId: string) {
           ? {
               ...item,
               ...(assistantMessageId ? { assistantMessageId } : {}),
+              phase: 'cancelled',
               status: 'error',
               error: AGENT_STOPPED_MESSAGE,
               finishedAt: now,
@@ -2262,7 +2315,7 @@ async function continueRecoveredAgentRound(taskId: string) {
         updatedAt: Date.now(),
         rounds: current.rounds.map((currentRound) =>
           currentRound.id === round.id
-            ? { ...currentRound, status: 'error', error, finishedAt: Date.now() }
+            ? { ...currentRound, phase: 'failed', status: 'error', error, finishedAt: Date.now() }
             : currentRound,
         ),
       }))
@@ -2430,6 +2483,7 @@ export async function submitAgentMessage() {
     maskTargetImageId,
     maskImageId,
     outputTaskIds: [],
+    phase: 'generating',
     status: 'running',
     error: null,
     createdAt: now,
@@ -2550,6 +2604,7 @@ export async function submitProposalAgentMessage() {
         prompt: trimmedPrompt,
         inputImageIds,
         outputTaskIds: [],
+        phase: 'thinking' as const,
         status: 'running' as const,
         error: null,
         createdAt: now,
@@ -2592,6 +2647,15 @@ export async function submitProposalAgentMessage() {
           createdAt: Date.now(),
         },
       ],
+      rounds: current.rounds.map((round) => round.id === roundId ? {
+        ...round,
+        phase: 'awaiting-confirmation' as const,
+        proposalAction: proposal.action,
+        proposalPrompt: proposal.prompt,
+        proposalReason: proposal.reason,
+        proposalReferencedImageIndexes: proposal.referencedImageIndexes,
+        proposalAspectRatio: proposal.aspectRatio,
+      } : round),
     }))
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
@@ -2608,7 +2672,7 @@ export async function submitProposalAgentMessage() {
       return {
         ...current,
         rounds: current.rounds.map((r) => (r.id === roundId
-          ? { ...r, assistantMessageId: targetMessageId, status: 'error' as const, error: message, finishedAt: Date.now() }
+          ? { ...r, assistantMessageId: targetMessageId, phase: 'failed' as const, status: 'error' as const, error: message, finishedAt: Date.now() }
           : r)),
         messages: current.messages.some((item) => item.id === targetMessageId)
           ? current.messages.map((item) => item.id === targetMessageId ? errorMessage : item)
@@ -2631,14 +2695,13 @@ export async function approveProposalAndGenerate() {
   const assistantMessageId = proposalRound?.assistantMessageId
     ?? proposalConversation?.messages.find((message) => message.roundId === roundId && message.role === 'assistant')?.id
     ?? genId()
-  useStore.setState({ agentPendingProposal: null })
-
   const normalized = normalizeSettings(state.settings)
   const imageProfile = getAgentImageApiProfile(normalized)
   if (!imageProfile) {
     state.showToast('图像模型配置不存在', 'error')
     return
   }
+  useStore.setState({ agentPendingProposal: null })
 
   // 取回参考图 data URL（按提案引用序号）
   const referenceImages: Array<{ id: string; dataUrl: string }> = []
@@ -2694,7 +2757,19 @@ export async function approveProposalAndGenerate() {
       ...current,
       rounds: current.rounds.map((r) =>
         r.id === roundId
-          ? { ...r, assistantMessageId: targetAssistantMessageId, status: 'running' as const, outputTaskIds: [taskId], finishedAt: null }
+          ? {
+              ...r,
+              assistantMessageId: targetAssistantMessageId,
+              phase: 'generating' as const,
+              proposalAction: undefined,
+              proposalPrompt: undefined,
+              proposalReason: undefined,
+              proposalReferencedImageIndexes: undefined,
+              proposalAspectRatio: undefined,
+              status: 'running' as const,
+              outputTaskIds: [taskId],
+              finishedAt: null,
+            }
           : r,
       ),
       messages: current.messages.some((message) => message.id === targetAssistantMessageId)
@@ -2726,27 +2801,8 @@ export async function approveProposalAndGenerate() {
   }
   state.setReusedTaskApiProfile(null)
 
-  // 轮询任务状态，结束后标记轮完成
-  const poll = async () => {
-    for (;;) {
-      await new Promise((r) => setTimeout(r, 1500))
-      const t = useStore.getState().tasks.find((x) => x.id === taskId)
-      if (!t) return
-      if (t.status === 'done' || t.status === 'error') {
-        const finalStatus: AgentRoundStatus = t.status === 'done' ? 'done' : 'error'
-        updateAgentConversation(conversationId, (current) => ({
-          ...current,
-          rounds: current.rounds.map((r) =>
-            r.id === roundId
-              ? { ...r, status: finalStatus, error: t.error, finishedAt: Date.now() }
-              : r,
-          ),
-        }))
-        return
-      }
-    }
-  }
-  void poll()
+  // 任务完成后同步 Agent 轮次阶段；可恢复任务保持 generating，恢复成功后再结束。
+  void watchAgentTaskCompletion(taskId)
 }
 
 /** 用户拒绝提案 */
@@ -2757,7 +2813,7 @@ export function rejectProposal() {
   updateAgentConversation(pending.conversationId, (current) => ({
     ...current,
     rounds: current.rounds.map((r) =>
-      r.id === pending.roundId ? { ...r, status: 'error' as const, error: '已取消提案', finishedAt: Date.now() } : r,
+      r.id === pending.roundId ? { ...r, phase: 'cancelled' as const, status: 'error' as const, error: '已取消提案', finishedAt: Date.now() } : r,
     ),
     messages: [
       ...current.messages,
@@ -3745,6 +3801,7 @@ async function executeAgentRound(
               outputTaskIds: taskIds,
               responseId: lastResponseId,
               responseOutput,
+              phase: 'completed',
               status: 'done',
               error: null,
               finishedAt: Date.now(),
@@ -3796,6 +3853,7 @@ async function executeAgentRound(
             ? {
                 ...round,
                 ...(existingAssistantMessage ? { assistantMessageId: existingAssistantMessage.id } : {}),
+                phase: 'failed',
                 status: 'error',
                 error: message,
                 finishedAt: Date.now(),
@@ -4147,8 +4205,10 @@ export async function deleteFavoriteCollection(collectionId: string, deleteTasks
 /** 重试失败的任务：创建新任务并执行 */
 export async function retryTask(task: TaskRecord) {
   const { settings } = useStore.getState()
-  const activeProfile = getActiveApiProfile(settings)
-  const normalizedParams = normalizeParamsForSettings(task.params, settings, { hasInputImages: task.inputImageIds.length > 0 })
+  const activeProfile = isAgentTask(task)
+    ? getTaskApiProfile(normalizeSettings(settings), task) ?? getAgentImageApiProfile(settings) ?? getActiveApiProfile(settings)
+    : getActiveApiProfile(settings)
+  const normalizedParams = normalizeParamsForSettings(task.params, createSettingsForApiProfile(normalizeSettings(settings), activeProfile), { hasInputImages: task.inputImageIds.length > 0 })
   const shouldUseTransparentOutput = (normalizedParams.output_format === 'png' || normalizedParams.output_format === 'webp') && normalizedParams.transparent_output
   const taskParams = shouldUseTransparentOutput
     ? getTransparentRequestParams(normalizedParams)
@@ -4177,12 +4237,32 @@ export async function retryTask(task: TaskRecord) {
     createdAt: Date.now(),
     finishedAt: null,
     elapsed: null,
+    sourceMode: task.sourceMode,
+    agentConversationId: task.agentConversationId,
+    agentRoundId: task.agentRoundId,
+    agentMessageId: task.agentMessageId,
+    agentToolCallId: task.agentToolCallId,
+    agentBatchCallId: task.agentBatchCallId,
+    agentBatchItemId: task.agentBatchItemId,
   }
 
   const latestTasks = useStore.getState().tasks
   useStore.getState().setTasks([newTask, ...latestTasks])
+  if (isAgentTask(task) && task.agentConversationId && task.agentRoundId) {
+    updateAgentConversation(task.agentConversationId, (current) => ({
+      ...current,
+      updatedAt: Date.now(),
+      rounds: current.rounds.map((round) => round.id === task.agentRoundId
+        ? { ...round, phase: 'generating' as const, status: 'running', outputTaskIds: [...new Set([...round.outputTaskIds, taskId])], error: null, finishedAt: null }
+        : round),
+      messages: current.messages.map((message) => message.id === task.agentMessageId
+        ? { ...message, outputTaskIds: [...new Set([...(message.outputTaskIds ?? []), taskId])] }
+        : message),
+    }))
+  }
   await putTask(newTask)
 
+  if (isAgentTask(task) && !task.agentToolCallId && !task.agentBatchCallId) void watchAgentTaskCompletion(taskId)
   executeTask(taskId)
 }
 
@@ -4586,7 +4666,8 @@ async function completeRecoveredCustomTask(task: TaskRecord, result: Awaited<Ret
   })
   useStore.getState().showToast(`自定义异步任务已恢复，共 ${outputIds.length} 张图片`, 'success')
   if (!isAgentTask(task)) showTaskCompletionNotification('图像生成完成', `自定义异步任务已恢复，共 ${outputIds.length} 张图片。`)
-  else void continueRecoveredAgentRound(task.id)
+  else if (task.agentToolCallId || task.agentBatchCallId) void continueRecoveredAgentRound(task.id)
+  else if (isAgentTask(task)) void watchAgentTaskCompletion(task.id)
 }
 
 async function recoverCustomTask(taskId: string) {
@@ -4613,7 +4694,10 @@ async function recoverCustomTask(taskId: string) {
       ...getRawErrorPayload(err),
       customRecoverable: false,
     })
-    if (isAgentTask(task)) void continueRecoveredAgentRound(taskId)
+    if (isAgentTask(task)) {
+      if (task.agentToolCallId || task.agentBatchCallId) void continueRecoveredAgentRound(taskId)
+      else void watchAgentTaskCompletion(taskId)
+    }
   }
 }
 

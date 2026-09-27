@@ -6,7 +6,7 @@ import { formatImageRatio } from '../lib/size'
 import { getParamDisplay, ActualValueBadge } from '../lib/paramDisplay'
 import { DEFAULT_FAL_MODEL, DEFAULT_IMAGES_MODEL } from '../lib/apiProfiles'
 import { isAgentTaskPromptPending } from '../lib/taskPromptDisplay'
-import { CodeIcon, TransparentBgIcon } from './icons'
+import { CodeIcon, DownloadIcon, EditIcon, ExpandIcon, TransparentBgIcon } from './icons'
 import ViewportTooltip from './ViewportTooltip'
 
 interface Props {
@@ -15,6 +15,10 @@ interface Props {
   onEditOutputs: () => void
   onDelete: () => void
   onClick: (e: React.MouseEvent | React.TouchEvent) => void
+  onDownload?: () => void
+  onAddToAssets?: () => void
+  onContinueEdit?: () => void
+  onPreview?: () => void
   isSelected?: boolean
   disableSwipe?: boolean
 }
@@ -64,6 +68,10 @@ export default function TaskCard({
   onEditOutputs,
   onDelete,
   onClick,
+  onDownload,
+  onAddToAssets,
+  onContinueEdit,
+  onPreview,
   isSelected,
   disableSwipe,
 }: Props) {
@@ -672,6 +680,44 @@ export default function TaskCard({
                   />
                 </svg>
               </TaskActionButton>
+              {onPreview && task.outputImages?.length > 0 && (
+                <TaskActionButton
+                  tooltip="放大预览"
+                  onClick={onPreview}
+                  className="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-950/30 text-gray-400 hover:text-blue-500 transition"
+                >
+                  <ExpandIcon className="w-4 h-4" />
+                </TaskActionButton>
+              )}
+              {onDownload && task.outputImages?.length > 0 && (
+                <TaskActionButton
+                  tooltip="下载图片"
+                  onClick={onDownload}
+                  className="p-1.5 rounded-md hover:bg-green-50 dark:hover:bg-green-950/30 text-gray-400 hover:text-green-500 transition"
+                >
+                  <DownloadIcon className="w-4 h-4" />
+                </TaskActionButton>
+              )}
+              {onAddToAssets && task.outputImages?.length > 0 && (
+                <TaskActionButton
+                  tooltip="加入素材库"
+                  onClick={onAddToAssets}
+                  className="p-1.5 rounded-md hover:bg-yellow-50 dark:hover:bg-yellow-950/30 text-gray-400 hover:text-yellow-500 transition"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                </TaskActionButton>
+              )}
+              {onContinueEdit && task.outputImages?.length > 0 && (
+                <TaskActionButton
+                  tooltip="继续编辑"
+                  onClick={onContinueEdit}
+                  className="p-1.5 rounded-md hover:bg-purple-50 dark:hover:bg-purple-950/30 text-gray-400 hover:text-purple-500 transition"
+                >
+                  <EditIcon className="w-4 h-4" />
+                </TaskActionButton>
+              )}
               <TaskActionButton
                 tooltip="复用配置"
                 onClick={onReuse}

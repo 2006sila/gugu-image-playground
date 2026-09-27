@@ -274,6 +274,7 @@ export interface FavoriteCollection {
 
 export type AgentMessageRole = 'user' | 'assistant'
 export type AgentRoundStatus = 'running' | 'done' | 'error'
+export type AgentRoundPhase = 'thinking' | 'awaiting-confirmation' | 'generating' | 'completed' | 'failed' | 'cancelled'
 
 export interface AgentMessage {
   id: string
@@ -300,6 +301,14 @@ export interface AgentRound {
   outputTaskIds: string[]
   responseId?: string
   responseOutput?: ResponsesOutputItem[]
+  /** 面向 UI 的 Agent 轮次阶段；status 仍用于运行/完成/错误分支判断。 */
+  phase?: AgentRoundPhase
+  /** 提案模式的结构化内容，保证刷新后仍可恢复确认卡片。 */
+  proposalAction?: 'generate' | 'edit'
+  proposalPrompt?: string
+  proposalReason?: string
+  proposalReferencedImageIndexes?: number[]
+  proposalAspectRatio?: string
   status: AgentRoundStatus
   error: string | null
   createdAt: number

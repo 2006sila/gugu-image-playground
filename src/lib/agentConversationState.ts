@@ -1,4 +1,4 @@
-import type { AgentConversation, AgentMessage, AgentRound, TaskRecord } from '../types'
+import type { AgentConversation, AgentMessage, AgentRound, AgentRoundPhase, TaskRecord } from '../types'
 import { normalizeResponsesOutputItems } from './responsesOutputState'
 
 const AGENT_ROUND_IMAGE_MENTION_RE = /@(?:第)?(\d+)轮图(\d+)/g
@@ -19,11 +19,20 @@ function normalizeAgentRound(value: unknown, fallbackIndex: number): AgentRound 
   if (typeof round.id !== 'string' || !round.id) return null
   if (typeof round.userMessageId !== 'string' || !round.userMessageId) return null
 
-  const status = round.status === 'running'
-    ? 'error'
+  const phase: AgentRoundPhase | undefined = round.phase === 'thinking'
+    || round.phase === 'awaiting-confirmation'
+    || round.phase === 'generating'
+    || round.phase === 'completed'
+    || round.phase === 'failed'
+    || round.phase === 'cancelled'
+    ? round.phase
+    : undefined
+  // 旧版本把运行中的轮次恢复为 error；等待确认是唯一可以跨刷新安全保留的 running 阶段。
+  const status = phase === 'awaiting-confirmation'
+    ? 'running'
     : round.status === 'error' || round.status === 'done'
-    ? round.status
-    : 'done'
+      ? round.status
+      : 'error'
   const responseOutput = Array.isArray(round.responseOutput) ? normalizeResponsesOutputItems(round.responseOutput) : undefined
 
   return {
@@ -39,6 +48,14 @@ function normalizeAgentRound(value: unknown, fallbackIndex: number): AgentRound 
     outputTaskIds: normalizeStringArray(round.outputTaskIds),
     ...(typeof round.responseId === 'string' ? { responseId: round.responseId } : {}),
     ...(responseOutput ? { responseOutput } : {}),
+    ...(phase ? { phase } : {}),
+    ...(round.proposalAction === 'generate' || round.proposalAction === 'edit' ? { proposalAction: round.proposalAction } : {}),
+    ...(typeof round.proposalPrompt === 'string' ? { proposalPrompt: round.proposalPrompt } : {}),
+    ...(typeof round.proposalReason === 'string' ? { proposalReason: round.proposalReason } : {}),
+    ...(Array.isArray(round.proposalReferencedImageIndexes)
+      ? { proposalReferencedImageIndexes: round.proposalReferencedImageIndexes.filter((item): item is number => typeof item === 'number' && Number.isInteger(item) && item > 0) }
+      : {}),
+    ...(typeof round.proposalAspectRatio === 'string' ? { proposalAspectRatio: round.proposalAspectRatio } : {}),
     status,
     error: status === 'error'
       ? typeof round.error === 'string' ? round.error : '上次请求已中断'

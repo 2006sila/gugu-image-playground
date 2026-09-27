@@ -3,6 +3,7 @@ import type { AgentMessage, AgentRound, TaskRecord } from '../types'
 import { editOutputs, regenerateAgentAssistantMessage, removeMultipleTasks, removeTask, reuseConfig, useStore } from '../store'
 import { getActiveAgentRounds, getAgentBranchLeafId, getConversationSearchText, getAgentRoundTaskIds, getAgentSiblingRounds } from '../lib/agentConversationState'
 import { ensureImageCached, getCachedImage } from '../lib/imageCache'
+import { addImageAsset } from '../lib/imageAssets'
 import { getPromptMentionParts } from '../lib/promptImageMentions'
 import { copyTextToClipboard, getClipboardFailureMessage } from '../lib/clipboard'
 import type { AgentWebSearchStatus } from '../lib/agentWebSearch'
@@ -128,6 +129,7 @@ export default function AgentWorkspace() {
   const tasks = useStore((s) => s.tasks)
   const setConfirmDialog = useStore((s) => s.setConfirmDialog)
   const setDetailTaskId = useStore((s) => s.setDetailTaskId)
+  const setLightboxImageId = useStore((s) => s.setLightboxImageId)
   const setPrompt = useStore((s) => s.setPrompt)
   const setInputImages = useStore((s) => s.setInputImages)
   const setMaskDraft = useStore((s) => s.setMaskDraft)
@@ -533,6 +535,38 @@ export default function AgentWorkspace() {
     })
   }
 
+  const handleTaskDownload = async (task: TaskRecord) => {
+    try {
+      const result = await downloadImageIds(task.outputImages, `agent-task-${task.id}`)
+      if (result.successCount === 0) showToast('下载失败', 'error')
+      else if (result.failCount > 0) showToast(`部分下载失败：成功 ${result.successCount}，失败 ${result.failCount}`, 'error')
+      else showToast('图片下载成功', 'success')
+    } catch (err) {
+      console.error(err)
+      showToast('下载失败', 'error')
+    }
+  }
+
+  const handleTaskAddToAssets = (task: TaskRecord) => {
+    if (!task.outputImages[0]) return
+    const asset = addImageAsset({ imageId: task.outputImages[0], source: 'Agent 生成' })
+    showToast(`已加入素材库：${asset.name}`, 'success')
+  }
+
+  const handleTaskContinueEdit = async (task: TaskRecord) => {
+    const imageId = task.outputImages[0]
+    if (!imageId) return
+    const dataUrl = await ensureImageCached(imageId)
+    if (!dataUrl) {
+      showToast('图片数据不存在，无法继续编辑', 'error')
+      return
+    }
+    setAppMode('agent')
+    setInputImages([{ id: imageId, dataUrl }])
+    setPrompt('请继续修改这张图片：')
+    showToast('已将图片放入 Agent 输入框', 'success')
+  }
+
   const handleReuse = (task: TaskRecord) => {
     setConfirmDialog({
       title: '切换到画廊模式？',
@@ -876,6 +910,10 @@ export default function AgentWorkspace() {
                                     task={block.task}
                                     disableSwipe={true}
                                     onClick={() => setDetailTaskId(block.task.id)}
+                                    onPreview={() => setLightboxImageId(block.task.outputImages[0] ?? null, block.task.outputImages)}
+                                    onDownload={() => void handleTaskDownload(block.task)}
+                                    onAddToAssets={() => handleTaskAddToAssets(block.task)}
+                                    onContinueEdit={() => void handleTaskContinueEdit(block.task)}
                                     onReuse={() => handleReuse(block.task)}
                                     onEditOutputs={() => editOutputs(block.task)}
                                     onDelete={() => setConfirmDialog({ title: '删除任务', message: '确定要删除这个任务吗？', action: () => removeTask(block.task) })}
