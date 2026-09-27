@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import type {
   AgentConversation,
   AgentInputDraft,
-  AgentMessage,
+  AgentMessage, AgentRoundStatus,
   AgentRound,
   ApiMode,
   ApiProfile,
@@ -2605,7 +2605,7 @@ export async function submitProposalAgentMessage() {
   }
 }
 
-/** 用户确认提案：按提案内容发起生图任务 */
+/** 用户确认提案：在 Agent 模式内直接生图，结果挂到当前轮的消息流 */
 export async function approveProposalAndGenerate() {
   const state = useStore.getState()
   const pending = state.agentPendingProposal
@@ -2613,38 +2613,100 @@ export async function approveProposalAndGenerate() {
   const { proposal, inputImageIds, roundId, conversationId } = pending
   useStore.setState({ agentPendingProposal: null })
 
-  const imageProfile = getAgentImageApiProfile(normalizeSettings(state.settings))
+  const normalized = normalizeSettings(state.settings)
+  const imageProfile = getAgentImageApiProfile(normalized)
   if (!imageProfile) {
     state.showToast('图像模型配置不存在', 'error')
     return
   }
 
   // 取回参考图 data URL（按提案引用序号）
-  const restoredImages: InputImage[] = []
+  const referenceImages: Array<{ id: string; dataUrl: string }> = []
   for (const idx of proposal.referencedImageIndexes) {
     const imageId = inputImageIds[idx - 1]
     if (!imageId) continue
     const dataUrl = await ensureImageCached(imageId)
-    if (dataUrl) restoredImages.push({ id: imageId, dataUrl })
+    if (dataUrl) referenceImages.push({ id: imageId, dataUrl })
   }
 
-  // 将提案 prompt 与参考图回填输入栏，走普通生图提交
-  state.setPrompt(proposal.prompt)
-  state.setInputImages(restoredImages)
+  const requestSettings = createSettingsForApiProfile(normalized, imageProfile)
+  const imageParams = {
+    ...normalizeParamsForSettings(state.params, requestSettings, { hasInputImages: referenceImages.length > 0 }),
+    n: 1,
+    transparent_output: false,
+  }
 
-  // 标记轮为完成（生图任务在画廊中独立跟踪）
+  const taskId = genId()
+  const now = Date.now()
+  const task: TaskRecord = {
+    id: taskId,
+    prompt: proposal.prompt,
+    params: imageParams,
+    apiProvider: imageProfile.provider,
+    apiProfileId: imageProfile.id,
+    apiProfileName: imageProfile.name,
+    apiMode: imageProfile.apiMode,
+    apiModel: imageProfile.model,
+    inputImageIds: referenceImages.map((i) => i.id),
+    outputImages: [],
+    status: 'running',
+    error: null,
+    createdAt: now,
+    finishedAt: null,
+    elapsed: null,
+  }
+
+  // 任务入全局列表（画廊历史也能看到）
+  useStore.getState().setTasks([task, ...useStore.getState().tasks])
+  void putTask(task)
+
+  // 挂到当前轮 + 生成 assistant 消息
+  const assistantMessageId = genId()
   updateAgentConversation(conversationId, (current) => ({
     ...current,
     rounds: current.rounds.map((r) =>
       r.id === roundId
-        ? { ...r, status: 'done' as const, finishedAt: Date.now(), outputTaskIds: [] }
+        ? { ...r, status: 'running' as const, outputTaskIds: [taskId], finishedAt: null }
         : r,
     ),
+    messages: [
+      ...current.messages,
+      {
+        id: assistantMessageId,
+        role: 'assistant' as const,
+        content: '',
+        roundId,
+        outputTaskIds: [taskId],
+        createdAt: Date.now(),
+      },
+    ],
+    updatedAt: now,
   }))
 
-  // 切回画廊并提交
-  state.setAppMode('gallery')
-  await submitTask()
+  // 复用画廊的执行管线（带重试/恢复能力）
+  executeTask(taskId)
+
+  // 轮询任务状态，结束后标记轮完成
+  const poll = async () => {
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 1500))
+      const t = useStore.getState().tasks.find((x) => x.id === taskId)
+      if (!t) return
+      if (t.status === 'done' || t.status === 'error') {
+        const finalStatus: AgentRoundStatus = t.status === 'done' ? 'done' : 'error'
+        updateAgentConversation(conversationId, (current) => ({
+          ...current,
+          rounds: current.rounds.map((r) =>
+            r.id === roundId
+              ? { ...r, status: finalStatus, error: t.error, finishedAt: Date.now() }
+              : r,
+          ),
+        }))
+        return
+      }
+    }
+  }
+  void poll()
 }
 
 /** 用户拒绝提案 */
