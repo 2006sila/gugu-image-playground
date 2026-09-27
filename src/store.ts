@@ -2654,6 +2654,9 @@ export async function approveProposalAndGenerate() {
     createdAt: now,
     finishedAt: null,
     elapsed: null,
+    sourceMode: 'agent',
+    agentConversationId: conversationId,
+    agentRoundId: roundId,
   }
 
   // 任务入全局列表（画廊历史也能看到）
