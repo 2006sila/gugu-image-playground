@@ -72,9 +72,14 @@ npm run dev
 
 # 构建生产版本（dist/）
 npm run build
+
+# 构建 Windows x64 免安装便携包（输出到 release/）
+npm run build:portable
 ```
 
 Windows 用户可直接双击 `START.bat`（日常启动）/ `INSTALL.bat`（首次安装）。
+
+GitHub Release 同时提供 Windows x64 便携包：下载后完整解压，双击包内 `START.bat` 即可运行，无需预装 Node.js 或执行 `npm install`。
 
 首次启动后：设置 → API 配置 填入你的 API 地址和 Key；设置 → 文本模型 配置文本模型（供反推/优化/Agent 使用）。
 

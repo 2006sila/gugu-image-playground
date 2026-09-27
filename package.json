@@ -1,12 +1,13 @@
 {
   "name": "gugu-image-playground",
   "private": true,
-  "version": "0.7.14",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "mock:api": "node scripts/mock-image-api.mjs",
     "build": "tsc -b && vite build",
+    "build:portable": "node scripts/build-portable.mjs",
     "deploy:cf": "npm run build && wrangler deploy",
     "preview": "vite preview",
     "test": "vitest run",
